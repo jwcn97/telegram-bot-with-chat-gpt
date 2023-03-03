@@ -5,21 +5,21 @@ dotenv.config();
 
 import TelegramBot from "node-telegram-bot-api";
 import { preparePrompt } from "./utils";
-import { fetchCompletionResponse, fetchCompletionResponseTest, fetchImageGenerationResponse } from "./api";
+import { fetchCompletionResponse, fetchImageGenerationResponse } from "./api";
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const queue = [];
 
-async function handleCompletionStream(chatId: number, prompt: string): Promise<void> {
+async function handleCompletion(chatId: number, prompt: string): Promise<void> {
   const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
   try {
-    const { data }: any = await fetchCompletionResponseTest(prompt);
+    const { data }: any = await fetchCompletionResponse(prompt);
     const readable = Readable.from(data, { encoding: 'utf8' });
     let phrase = '';
     let tempPhrase = '';
     let maxHoldingLength = 20;
 
-    // TODO: assumption that stream is quicker than dequeue and editting message process
+    // TODO: assumption: stream is quicker than dequeue / message-editing process
     readable.on('data', async (d) => {
       const jsonText = d.replace('data: ', '');
       if (!jsonText || jsonText.includes('[DONE]')) return;
@@ -77,32 +77,6 @@ async function handleCompletionStream(chatId: number, prompt: string): Promise<v
   }
 }
 
-async function handleCompletion(chatId: number, prompt: string): Promise<void> {
-  const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
-  try {
-    const { data: response } = await fetchCompletionResponse(prompt);
-    const { choices = [] } = response || {};
-    if (choices.length) {
-      bot.editMessageText(choices[0].text, {
-        chat_id: chatId,
-        message_id: messageId,
-      })
-    }
-  } catch (error) {
-    let errorMsg = '';
-    if (error.response) {
-      console.log(error.response.data);
-      errorMsg = `[${error.response.status}][${error.response.data.error.type}]: ${error.response.data.error.message}`;
-    } else {
-      errorMsg = error.message;
-    }
-    bot.editMessageText(`❗ ${errorMsg}`, {
-      chat_id: chatId,
-      message_id: messageId,
-    });
-  }
-}
-
 async function handleImageGeneration(chatId: number, prompt: string): Promise<void> {
   const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
   try {
@@ -138,8 +112,6 @@ bot.on('message', async (msg) => {
 
   if (prompt.includes('image') || prompt.includes('img') || prompt.includes('picture')) {
     handleImageGeneration(chatId, prompt);
-  } else if (prompt.includes('story')) {
-    handleCompletionStream(chatId, prompt);
   } else {
     handleCompletion(chatId, prompt);
   }
