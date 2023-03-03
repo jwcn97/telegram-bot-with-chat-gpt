@@ -5,7 +5,7 @@ dotenv.config();
 
 import TelegramBot from "node-telegram-bot-api";
 import { preparePrompt } from "./utils";
-import { fetchCompletionResponse, fetchImageGenerationResponse } from "./api";
+import { fetchCompletionResponse, fetchImageGenerationResponse, modelAPI } from "./api";
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const queue = [];
@@ -103,6 +103,23 @@ async function handleImageGeneration(chatId: number, prompt: string): Promise<vo
   }
 }
 
+async function handleGenericPrompt(chatId, prompt) {
+  const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
+  try {
+    const { choices = [] } = await modelAPI(prompt);
+    bot.editMessageText(choices?.[0]?.message?.content, {
+      chat_id: chatId,
+      message_id: messageId,
+    });
+  } catch (error) {
+    console.log(error.message);
+    bot.editMessageText(`❗ ${JSON.stringify(error, null, 2)}`, {
+      chat_id: chatId,
+      message_id: messageId,
+    });
+  }
+}
+
 bot.on('message', async (msg) => {
   console.log(msg);
   const prompt = preparePrompt(msg);
@@ -112,7 +129,9 @@ bot.on('message', async (msg) => {
 
   if (prompt.includes('image') || prompt.includes('img') || prompt.includes('picture')) {
     handleImageGeneration(chatId, prompt);
-  } else {
+  } else if (prompt.includes('story') || prompt.includes('how')) {
     handleCompletion(chatId, prompt);
+  } else {
+    handleGenericPrompt(chatId, prompt);
   }
 });

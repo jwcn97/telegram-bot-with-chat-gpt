@@ -14,4 +14,8 @@ export function preparePrompt({ chat, text, entities = [] }: Message): string | 
       return text.substring(0, entity.offset) + text.substring(entity.length);
     }
   }
-}
+};
+
+// export function getContext({}) {
+
+// }
