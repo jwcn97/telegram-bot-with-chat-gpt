@@ -5,7 +5,11 @@ dotenv.config();
 
 import TelegramBot from "node-telegram-bot-api";
 import { preparePrompt } from "./utils";
-import { fetchChatCompletion, fetchCompletionStream, fetchImageGenerationResponse } from "./api";
+import {
+  fetchChatCompletion,
+  fetchCompletionStream,
+  fetchImageGenerationResponse,
+} from "./api";
 
 const PHRASE_LEN = 30;
 const CHAT_MESSAGES = {};
@@ -14,6 +18,7 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 async function handleChatCompletion(chatId: number, prompt: string): Promise<void> {
   const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
   try {
+    // append user input
     if (CHAT_MESSAGES[chatId]) {
       CHAT_MESSAGES[chatId].push({ role: 'user', content: prompt });
     } else {
@@ -21,6 +26,7 @@ async function handleChatCompletion(chatId: number, prompt: string): Promise<voi
     }
     const response = await fetchChatCompletion(CHAT_MESSAGES[chatId]);
     const { choices = [] } = response || {};
+    // append assistant response
     if (choices[0]?.message) {
       CHAT_MESSAGES[chatId].push(choices[0]?.message)
     }
@@ -31,13 +37,14 @@ async function handleChatCompletion(chatId: number, prompt: string): Promise<voi
     });
   } catch (error) {
     console.log(error.message);
-    bot.editMessageText(`❗ ${JSON.stringify(error, null, 2)}`, {
+    bot.editMessageText(`❗ ${JSON.stringify(error, null, 4)}`, {
       chat_id: chatId,
       message_id: messageId,
     });
   }
 }
 
+// TODO: FIX: optimise stream in group chat (too many telegram requests)
 async function handleCompletionStream(chatId: number, prompt: string): Promise<void> {
   const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
   try {
@@ -50,45 +57,20 @@ async function handleCompletionStream(chatId: number, prompt: string): Promise<v
     // TODO: assumption: stream is quicker than dequeue / message-editing process
     readable.on('data', async (d) => {
       const jsonText = d.replace('data: ', '');
-      if (!jsonText) return;
-      
-      // NOTE: [EDGE CASE] full message is shorter than phrase length
-      if (jsonText.includes('[DONE]')) {
-        fullMessage += tempPhrase.slice(0, PHRASE_LEN);
-        await bot.editMessageText(fullMessage, {
-          chat_id: chatId,
-          message_id: messageId,
-        });
-        return;
-      }
-
+      if (!jsonText || jsonText.includes('[DONE]')) return;
       try {
         const res = JSON.parse(jsonText);
-        const text = res?.choices?.[0]?.text || '';
-
         // accumulate words until a phrase is formed
-        tempPhrase += text;
+        tempPhrase += res?.choices?.[0]?.text || '';
         if (tempPhrase.length < PHRASE_LEN) return;
-
         // append phrase to queue
         queue += tempPhrase;
         tempPhrase = '';
         if (fullMessage) return;
-
         // dequeue and edit message
         while (queue.length) {
           fullMessage += queue.slice(0, PHRASE_LEN);
           queue = queue.slice(PHRASE_LEN);
-          await bot.editMessageText(fullMessage, {
-            chat_id: chatId,
-            message_id: messageId,
-          });
-        }
-        
-        // append any remaining words to the message
-        if (tempPhrase) {
-          fullMessage += tempPhrase
-          tempPhrase = '';
           await bot.editMessageText(fullMessage, {
             chat_id: chatId,
             message_id: messageId,
@@ -102,6 +84,16 @@ async function handleCompletionStream(chatId: number, prompt: string): Promise<v
         });
       }
     });
+
+    // NOTE: [EDGE CASE] end of stream is reached and program is
+    // still accumulating words for a decent phrase to send out
+    readable.on('end', async () => {
+      if (!tempPhrase) return;
+      bot.editMessageText(fullMessage + tempPhrase, {
+        chat_id: chatId,
+        message_id: messageId,
+      });
+    })
   } catch (error) {
     let errorMsg = '';
     if (error.response) {
@@ -119,13 +111,17 @@ async function handleCompletionStream(chatId: number, prompt: string): Promise<v
 
 async function handleImageGeneration(chatId: number, prompt: string): Promise<void> {
   const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
+  let originalMessageDeleted = false;
   try {
     const { data: response } = await fetchImageGenerationResponse(prompt);
     const { data = [] } = response || {};
     data.forEach(async (obj) => {
       if (obj.url) {
         await bot.sendPhoto(chatId, obj.url);
-        bot.deleteMessage(chatId, messageId.toString());
+        if (!originalMessageDeleted) {
+          bot.deleteMessage(chatId, messageId.toString());
+          originalMessageDeleted = true;
+        }
       }
     });
   } catch (error) {
