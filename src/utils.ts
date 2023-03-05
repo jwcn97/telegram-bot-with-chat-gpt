@@ -15,7 +15,3 @@ export function preparePrompt({ chat, text, entities = [] }: Message): string | 
     }
   }
 };
-
-// export function getContext({}) {
-
-// }

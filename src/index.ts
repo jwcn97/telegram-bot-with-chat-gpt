@@ -7,39 +7,51 @@ import TelegramBot from "node-telegram-bot-api";
 import { preparePrompt } from "./utils";
 import { fetchCompletionResponse, fetchImageGenerationResponse, modelAPI } from "./api";
 
+const PHRASE_LEN = 30;
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
-const queue = [];
 
 async function handleCompletion(chatId: number, prompt: string): Promise<void> {
   const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
   try {
     const { data }: any = await fetchCompletionResponse(prompt);
     const readable = Readable.from(data, { encoding: 'utf8' });
-    let phrase = '';
+    let queue = '';
+    let fullMessage = '';
     let tempPhrase = '';
-    let maxHoldingLength = 20;
 
     // TODO: assumption: stream is quicker than dequeue / message-editing process
     readable.on('data', async (d) => {
       const jsonText = d.replace('data: ', '');
-      if (!jsonText || jsonText.includes('[DONE]')) return;
+      if (!jsonText) return;
+      
+      // NOTE: [EDGE CASE] full message is shorter than phrase length
+      if (jsonText.includes('[DONE]')) {
+        fullMessage += tempPhrase.slice(0, PHRASE_LEN);
+        await bot.editMessageText(fullMessage, {
+          chat_id: chatId,
+          message_id: messageId,
+        });
+        return;
+      }
+
       try {
         const res = JSON.parse(jsonText);
         const text = res?.choices?.[0]?.text;
 
         // accumulate words until a phrase is formed
         tempPhrase += text;
-        if (tempPhrase.length < maxHoldingLength) return;
+        if (tempPhrase.length < PHRASE_LEN) return;
 
         // append phrase to queue
-        queue.push(tempPhrase);
+        queue += tempPhrase;
         tempPhrase = '';
-        if (phrase) return;
+        if (fullMessage) return;
 
         // dequeue and edit message
         while (queue.length) {
-          phrase += queue.shift();
-          await bot.editMessageText(phrase, {
+          fullMessage += queue.slice(0, PHRASE_LEN);
+          queue = queue.slice(PHRASE_LEN);
+          await bot.editMessageText(fullMessage, {
             chat_id: chatId,
             message_id: messageId,
           });
@@ -47,9 +59,9 @@ async function handleCompletion(chatId: number, prompt: string): Promise<void> {
         
         // append any remaining words to the message
         if (tempPhrase) {
-          phrase += tempPhrase
+          fullMessage += tempPhrase
           tempPhrase = '';
-          await bot.editMessageText(phrase, {
+          await bot.editMessageText(fullMessage, {
             chat_id: chatId,
             message_id: messageId,
           });
@@ -108,6 +120,7 @@ async function handleGenericPrompt(chatId, prompt) {
   try {
     const { choices = [] } = await modelAPI(prompt);
     bot.editMessageText(choices?.[0]?.message?.content, {
+      parse_mode: 'Markdown',
       chat_id: chatId,
       message_id: messageId,
     });
@@ -129,9 +142,11 @@ bot.on('message', async (msg) => {
 
   if (prompt.includes('image') || prompt.includes('img') || prompt.includes('picture')) {
     handleImageGeneration(chatId, prompt);
-  } else if (prompt.includes('story') || prompt.includes('how')) {
+  }
+  else if (prompt.includes('story') || prompt.includes('how')) {
     handleCompletion(chatId, prompt);
-  } else {
+  }
+  else {
     handleGenericPrompt(chatId, prompt);
   }
 });
