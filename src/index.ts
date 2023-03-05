@@ -5,15 +5,43 @@ dotenv.config();
 
 import TelegramBot from "node-telegram-bot-api";
 import { preparePrompt } from "./utils";
-import { fetchCompletionResponse, fetchImageGenerationResponse, modelAPI } from "./api";
+import { fetchChatCompletion, fetchCompletionStream, fetchImageGenerationResponse } from "./api";
 
 const PHRASE_LEN = 30;
+const CHAT_MESSAGES = {};
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
-async function handleCompletion(chatId: number, prompt: string): Promise<void> {
+async function handleChatCompletion(chatId: number, prompt: string): Promise<void> {
   const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
   try {
-    const { data }: any = await fetchCompletionResponse(prompt);
+    if (CHAT_MESSAGES[chatId]) {
+      CHAT_MESSAGES[chatId].push({ role: 'user', content: prompt });
+    } else {
+      CHAT_MESSAGES[chatId] = [{ role: 'user', content: prompt }];
+    }
+    const response = await fetchChatCompletion(CHAT_MESSAGES[chatId]);
+    const { choices = [] } = response || {};
+    if (choices[0]?.message) {
+      CHAT_MESSAGES[chatId].push(choices[0]?.message)
+    }
+    bot.editMessageText(choices?.[0]?.message?.content, {
+      parse_mode: 'Markdown',
+      chat_id: chatId,
+      message_id: messageId,
+    });
+  } catch (error) {
+    console.log(error.message);
+    bot.editMessageText(`❗ ${JSON.stringify(error, null, 2)}`, {
+      chat_id: chatId,
+      message_id: messageId,
+    });
+  }
+}
+
+async function handleCompletionStream(chatId: number, prompt: string): Promise<void> {
+  const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
+  try {
+    const { data }: any = await fetchCompletionStream(prompt);
     const readable = Readable.from(data, { encoding: 'utf8' });
     let queue = '';
     let fullMessage = '';
@@ -36,7 +64,7 @@ async function handleCompletion(chatId: number, prompt: string): Promise<void> {
 
       try {
         const res = JSON.parse(jsonText);
-        const text = res?.choices?.[0]?.text;
+        const text = res?.choices?.[0]?.text || '';
 
         // accumulate words until a phrase is formed
         tempPhrase += text;
@@ -115,24 +143,6 @@ async function handleImageGeneration(chatId: number, prompt: string): Promise<vo
   }
 }
 
-async function handleGenericPrompt(chatId, prompt) {
-  const { message_id: messageId } = await bot.sendMessage(chatId, '⌛...');
-  try {
-    const { choices = [] } = await modelAPI(prompt);
-    bot.editMessageText(choices?.[0]?.message?.content, {
-      parse_mode: 'Markdown',
-      chat_id: chatId,
-      message_id: messageId,
-    });
-  } catch (error) {
-    console.log(error.message);
-    bot.editMessageText(`❗ ${JSON.stringify(error, null, 2)}`, {
-      chat_id: chatId,
-      message_id: messageId,
-    });
-  }
-}
-
 bot.on('message', async (msg) => {
   console.log(msg);
   const prompt = preparePrompt(msg);
@@ -143,10 +153,8 @@ bot.on('message', async (msg) => {
   if (prompt.includes('image') || prompt.includes('img') || prompt.includes('picture')) {
     handleImageGeneration(chatId, prompt);
   }
-  else if (prompt.includes('story') || prompt.includes('how')) {
-    handleCompletion(chatId, prompt);
-  }
   else {
-    handleGenericPrompt(chatId, prompt);
+    handleChatCompletion(chatId, prompt);
+    // handleCompletionStream(chatId, prompt);
   }
 });
