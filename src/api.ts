@@ -1,53 +1,68 @@
 import { Configuration, OpenAIApi } from "openai";
+import { chatModule } from "./utils";
 
 const apiKey = process.env.OPENAI_TOKEN;
 const configuration = new Configuration({ apiKey });
 const openai = new OpenAIApi(configuration);
 
-export function fetchChatCompletion(messages: Array<{ role: string; content: string }>) {
-    return fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            messages,
-            max_tokens: 400,
-            temperature: 0,
-        }),
-    }).then(res => res.json());
+type DefaultArgType = Record<string, unknown>;
+type DefaultReturnType = any;
+
+/**
+ * low level fetch function which handles error handling
+ * @param func async function to be called
+ * @returns 
+ */
+function makeFetch<ArgType = DefaultArgType, ReturnType = DefaultReturnType>(
+    func: (args: ArgType) => ReturnType
+) {
+    return async (args: ArgType) => {
+        try {
+            return await func(args);
+        } catch (error) {
+            let errorMsg = '';
+            // assumes axios error response
+            if (error.response) {
+                console.error(error.response.data);
+                errorMsg = `[${error.response.status}][${error.response.data?.error?.type}]: ${error.response.data?.error?.message}`;
+            } else {
+                errorMsg = error.message;
+            }
+            return Promise.resolve({ errorMsg });
+        }
+    }
 }
 
-export function fetchCompletion(prompt: string) {
-    return openai.createCompletion({
-        model: 'text-davinci-003',
-        prompt,
-        max_tokens: 400,
+export const fetchChatCompletion = makeFetch<{ chatId: number }, Promise<any>>(
+    async ({ chatId }) => openai.createChatCompletion({
+        model: 'gpt-3.5-turbo',
+        messages: chatModule.getMessages(chatId),
+        max_tokens: 300,
         temperature: 0,
-    });
-}
+    })
+);
 
-export function fetchCompletionStream(prompt: string) {
-    return openai.createCompletion({
+export const fetchCompletion = makeFetch<{ prompt: string }, Promise<any>>(
+    ({ prompt }) => openai.createCompletion({
         model: 'text-davinci-003',
         prompt,
-        max_tokens: 400,
+        max_tokens: 300,
+        temperature: 0,
+    })
+);
+
+export const fetchCompletionStream = makeFetch<{ prompt: string }, Promise<any>>(
+    ({ prompt }) => openai.createCompletion({
+        model: 'text-davinci-003',
+        prompt,
+        max_tokens: 350,
         temperature: 0,
         stream: true,
-    }, { responseType: 'stream' });
-}
+    }, {
+        responseType: 'stream',
+    })
+);
 
-// export function fetchCode(prompt: string) {
-//     return openai.createCompletion({
-//         model: 'code-cushman-001',
-//         prompt,
-//         max_tokens: 1000,
-//         temperature: 0,
-//     });
-// }
-
-export function fetchImageGenerationResponse(prompt: string) {
-    return openai.createImage({ prompt, n: 2 });
-}
+export const fetchImageGeneration = makeFetch<{ prompt: string }, Promise<any>>(
+    ({ prompt }) => openai.createImage({ prompt })
+);
