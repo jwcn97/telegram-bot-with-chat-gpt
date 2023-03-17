@@ -20,6 +20,12 @@ class ChatMessages {
     }
   }
 
+  public deleteLastMessageInChat(chatId: number): void {
+    if (this.chatMessages[chatId]) {
+      this.chatMessages[chatId].pop();
+    }
+  }
+
   public clearChat(chatId: number): void {
     delete this.chatMessages[chatId];
   }

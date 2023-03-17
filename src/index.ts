@@ -27,6 +27,7 @@ async function handleChatCompletion(msg: Message, prompt: string): Promise<void>
   });
   const { data, errorMsg } = await fetchChatCompletion({ chatId: chat.id });
   if (errorMsg) {
+    chatModule.deleteLastMessageInChat(chat.id);
     bot.editMessageText(`❗ ${errorMsg}`, {
       chat_id: chat.id,
       message_id: messageId,
