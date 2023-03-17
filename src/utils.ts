@@ -68,3 +68,10 @@ export function preparePrompt({ chat, text, entities = [] }: Message): { command
   // invalid commands
   return {};
 };
+
+export function handleChineseCharacters(str: string): string {
+  if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/g.test(str)) {
+    return 'name';
+  }
+  return str;
+}
