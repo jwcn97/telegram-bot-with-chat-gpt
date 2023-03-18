@@ -1,23 +1,25 @@
-
-import * as dotenv from "dotenv";
+import * as dotenv from 'dotenv';
 import { Readable } from 'stream';
 dotenv.config();
 
-import { ChatCompletionRequestMessageRoleEnum } from "openai";
-import TelegramBot from "node-telegram-bot-api";
-import { chatModule, preparePrompt, handleChineseCharacters } from "./utils";
+import { ChatCompletionRequestMessageRoleEnum } from 'openai';
+import TelegramBot from 'node-telegram-bot-api';
+import { chatModule, preparePrompt, handleChineseCharacters } from './utils';
 import {
   fetchChatCompletion,
   fetchCompletionStream,
   fetchImageGeneration,
-} from "./api";
+} from './api';
 
-import type { Message } from "node-telegram-bot-api";
+import type { Message } from 'node-telegram-bot-api';
 
 const PHRASE_LEN = 30;
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
-async function handleChatCompletion(msg: Message, prompt: string): Promise<void> {
+async function handleChatCompletion(
+  msg: Message,
+  prompt: string
+): Promise<void> {
   const { from, chat } = msg;
   const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛');
 
@@ -45,10 +47,14 @@ async function handleChatCompletion(msg: Message, prompt: string): Promise<void>
   });
 }
 
-async function handleCompletionStream(msg: Message, prompt: string): Promise<void> {
+async function handleCompletionStream(
+  msg: Message,
+  prompt: string
+): Promise<void> {
   const { chat } = msg;
   const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛');
-  const { data, errorMsg }: { data: Iterable<any>; errorMsg: string } = await fetchCompletionStream({ prompt });
+  const { data, errorMsg }: { data: Iterable<any>; errorMsg: string } =
+    await fetchCompletionStream({ prompt });
   if (errorMsg) {
     bot.editMessageText(`❗ ${errorMsg}`, {
       chat_id: chat.id,
@@ -100,7 +106,10 @@ async function handleCompletionStream(msg: Message, prompt: string): Promise<voi
   });
 }
 
-async function handleImageGeneration(msg: Message, prompt: string): Promise<void> {
+async function handleImageGeneration(
+  msg: Message,
+  prompt: string
+): Promise<void> {
   const { chat } = msg;
   const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛');
   let originalMessageDeleted = false;
@@ -125,20 +134,27 @@ async function handleImageGeneration(msg: Message, prompt: string): Promise<void
   });
 }
 
-bot.setMyCommands([{
-  command: '/image',
-  description: '(e.g. "/image of a seal")',
-},{
-  command: '/story',
-  description: '(e.g. "/story of australia")',
-},{
-  command: '/clearconvo',
-  description: 'ask chatgpt to forget the current convo',
-}], {
-  scope: {
-    type: 'all_private_chats'
+bot.setMyCommands(
+  [
+    {
+      command: '/image',
+      description: '(e.g. "/image of a seal")',
+    },
+    {
+      command: '/story',
+      description: '(e.g. "/story of australia")',
+    },
+    {
+      command: '/clearconvo',
+      description: 'ask chatgpt to forget the current convo',
+    },
+  ],
+  {
+    scope: {
+      type: 'all_private_chats',
+    },
   }
-});
+);
 
 bot.on('message', async (msg) => {
   const { command, prompt } = preparePrompt(msg);
@@ -152,6 +168,8 @@ bot.on('message', async (msg) => {
     return;
   }
   console.log('\nCOMMAND:', command, '\nPROMPT:', prompt);
+
+  // const commands = await bot.getMyCommands({ type: 'all_private_chats' });
 
   switch (command) {
     case 'clearconvo':
@@ -173,12 +191,13 @@ bot.on('message', async (msg) => {
       handleChatCompletion(msg, prompt);
       break;
     default:
-      const commands = await bot.getMyCommands({ type: 'all_private_chats' });
-      bot.sendMessage(
-        msg.chat.id,
-        'Please input one of the valid commands below\n\n' +
-        commands.map(obj => '/' + obj.command + ' : ' + obj.description).join('\n')
-      );
+      // bot.sendMessage(
+      //   msg.chat.id,
+      //   'Please input one of the valid commands below\n\n' +
+      //     commands
+      //       .map((obj) => '/' + obj.command + ' : ' + obj.description)
+      //       .join('\n')
+      // );
       break;
   }
 });
