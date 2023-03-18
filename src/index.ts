@@ -5,7 +5,7 @@ dotenv.config();
 
 import { ChatCompletionRequestMessageRoleEnum } from "openai";
 import TelegramBot from "node-telegram-bot-api";
-import { chatModule, preparePrompt } from "./utils";
+import { chatModule, preparePrompt, handleChineseCharacters } from "./utils";
 import {
   fetchChatCompletion,
   fetchCompletionStream,
@@ -20,13 +20,15 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 async function handleChatCompletion(msg: Message, prompt: string): Promise<void> {
   const { from, chat } = msg;
   const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛');
+
   chatModule.addMessage(chat.id, {
     role: ChatCompletionRequestMessageRoleEnum.User,
     content: prompt,
-    name: from.first_name,
+    name: handleChineseCharacters(from.first_name),
   });
   const { data, errorMsg } = await fetchChatCompletion({ chatId: chat.id });
   if (errorMsg) {
+    chatModule.deleteLastMessageInChat(chat.id);
     bot.editMessageText(`❗ ${errorMsg}`, {
       chat_id: chat.id,
       message_id: messageId,
