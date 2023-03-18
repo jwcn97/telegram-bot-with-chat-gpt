@@ -169,7 +169,7 @@ bot.on('message', async (msg) => {
   }
   console.log('\nCOMMAND:', command, '\nPROMPT:', prompt);
 
-  const commands = await bot.getMyCommands({ type: 'all_private_chats' });
+  // const commands = await bot.getMyCommands({ type: 'all_private_chats' });
 
   switch (command) {
     case 'clearconvo':
@@ -191,13 +191,13 @@ bot.on('message', async (msg) => {
       handleChatCompletion(msg, prompt);
       break;
     default:
-      bot.sendMessage(
-        msg.chat.id,
-        'Please input one of the valid commands below\n\n' +
-          commands
-            .map((obj) => '/' + obj.command + ' : ' + obj.description)
-            .join('\n')
-      );
+      // bot.sendMessage(
+      //   msg.chat.id,
+      //   'Please input one of the valid commands below\n\n' +
+      //     commands
+      //       .map((obj) => '/' + obj.command + ' : ' + obj.description)
+      //       .join('\n')
+      // );
       break;
   }
 });
