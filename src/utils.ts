@@ -1,5 +1,5 @@
-import type { ChatCompletionRequestMessage } from "openai";
-import type { Message } from "node-telegram-bot-api";
+import type { ChatCompletionRequestMessage } from 'openai';
+import type { Message } from 'node-telegram-bot-api';
 
 class ChatMessages {
   chatMessages: Record<string, Array<ChatCompletionRequestMessage>>;
@@ -11,7 +11,10 @@ class ChatMessages {
     return this.chatMessages[chatId];
   }
 
-  public addMessage(chatId: number, message: ChatCompletionRequestMessage): void {
+  public addMessage(
+    chatId: number,
+    message: ChatCompletionRequestMessage
+  ): void {
     if (!message) return;
     if (this.chatMessages[chatId]) {
       this.chatMessages[chatId].push(message);
@@ -37,14 +40,21 @@ class ChatMessages {
 const chatModule = new ChatMessages();
 export { chatModule };
 
-export function preparePrompt({ chat, text, entities = [] }: Message): { command?: string; prompt?: string; } {
+export function preparePrompt({ chat, text, entities = [] }: Message): {
+  command?: string;
+  prompt?: string;
+} {
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
     // bot-commands
     if (entity.type === 'bot_command') {
       return {
-        command: text.slice(entity.offset + 1, entity.offset + entity.length).replace('@zerealchatgptbot',''),
-        prompt: text.substring(0, entity.offset) + text.substring(entity.offset + 1).replace('@zerealchatgptbot',''),
+        command: text
+          .slice(entity.offset + 1, entity.offset + entity.length)
+          .replace('@zerealchatgptbot', ''),
+        prompt:
+          text.substring(0, entity.offset) +
+          text.substring(entity.offset + 1).replace('@zerealchatgptbot', ''),
       };
     }
     // bot-mentions
@@ -54,7 +64,8 @@ export function preparePrompt({ chat, text, entities = [] }: Message): { command
     ) {
       return {
         command: 'default',
-        prompt: text.substring(0, entity.offset) + text.substring(entity.length),
+        prompt:
+          text.substring(0, entity.offset) + text.substring(entity.length),
       };
     }
   }
@@ -67,10 +78,14 @@ export function preparePrompt({ chat, text, entities = [] }: Message): { command
   }
   // invalid commands
   return {};
-};
+}
 
 export function handleChineseCharacters(str: string): string {
-  if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/g.test(str)) {
+  if (
+    /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/g.test(
+      str
+    )
+  ) {
     return 'name';
   }
   return str;

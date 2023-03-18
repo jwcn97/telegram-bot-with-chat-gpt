@@ -5,7 +5,10 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --config .prettierrc 'src/**/*.ts' --write",
     "build": "tsc",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "start": "nodemon"
   },
   "author": "Jackie",
@@ -18,7 +21,12 @@
   },
   "devDependencies": {
     "@types/node-telegram-bot-api": "^0.57.6",
+    "@typescript-eslint/eslint-plugin": "^5.55.0",
+    "eslint": "^8.36.0",
+    "eslint-config-prettier": "^8.7.0",
+    "eslint-plugin-prettier": "^4.2.1",
     "nodemon": "^2.0.20",
+    "prettier": "^2.8.4",
     "ts-node": "^10.9.1",
     "typescript": "^4.8.4"
   }
