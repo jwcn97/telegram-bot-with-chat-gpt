@@ -43,16 +43,6 @@ export const fetchChatCompletion = makeFetch<{ chatId: number }, Promise<any>>(
     })
 );
 
-export const fetchCompletion = makeFetch<{ prompt: string }, Promise<any>>(
-  ({ prompt }) =>
-    openai.createCompletion({
-      model: 'text-davinci-003',
-      prompt,
-      max_tokens: 300,
-      temperature: 0,
-    })
-);
-
 export const fetchCompletionStream = makeFetch<
   { prompt: string },
   Promise<any>
@@ -61,7 +51,7 @@ export const fetchCompletionStream = makeFetch<
     {
       model: 'text-davinci-003',
       prompt,
-      max_tokens: 350,
+      max_tokens: 300,
       temperature: 0,
       stream: true,
     },

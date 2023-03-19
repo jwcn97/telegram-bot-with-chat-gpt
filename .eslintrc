@@ -12,6 +12,7 @@
     "prettier"
   ],
   "rules": {
-    "prettier/prettier": ["error"]
+    "prettier/prettier": ["error"],
+    "@typescript-eslint/ban-types": ["warn"]
   }
 }
