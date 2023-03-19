@@ -21,7 +21,7 @@ async function handleChatCompletion(
   prompt: string
 ): Promise<void> {
   const { from, chat } = msg;
-  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛');
+  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛...💭');
 
   chatModule.addMessage(chat.id, {
     role: ChatCompletionRequestMessageRoleEnum.User,
@@ -52,7 +52,7 @@ async function handleCompletionStream(
   prompt: string
 ): Promise<void> {
   const { chat } = msg;
-  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛');
+  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛...💭');
   const { data, errorMsg }: { data: Iterable<any>; errorMsg: string } =
     await fetchCompletionStream({ prompt });
   if (errorMsg) {
@@ -110,8 +110,8 @@ async function handleImageGeneration(
   msg: Message,
   prompt: string
 ): Promise<void> {
-  const { chat } = msg;
-  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛');
+  const { from, chat } = msg;
+  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛...💭');
   let originalMessageDeleted = false;
   const { data: response, errorMsg } = await fetchImageGeneration({ prompt });
   if (errorMsg) {
@@ -121,6 +121,17 @@ async function handleImageGeneration(
     });
     return;
   }
+
+  // update chat status for chatgpt to have context when referring back
+  chatModule.addMessage(chat.id, {
+    role: ChatCompletionRequestMessageRoleEnum.User,
+    content: prompt,
+    name: handleChineseCharacters(from.first_name),
+  });
+  chatModule.addMessage(chat.id, {
+    role: ChatCompletionRequestMessageRoleEnum.Assistant,
+    content: `here is ${prompt}`,
+  });
 
   const { data = [] } = response || {};
   data.forEach(async (obj) => {

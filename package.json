@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit --skipLibCheck",
     "start": "nodemon",
     "process:start": "pm2 start dist/index.js --max-memory-restart 300M",
-    "process:stop": "pm2 stop index && pm2 delete index"
+    "process:stop": "pm2 stop index & pm2 delete index"
   },
   "author": "Jackie",
   "license": "ISC",
