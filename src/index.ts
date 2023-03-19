@@ -21,7 +21,7 @@ async function handleChatCompletion(
   prompt: string
 ): Promise<void> {
   const { from, chat } = msg;
-  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛...💭');
+  const { message_id: messageId } = await bot.sendMessage(chat.id, '💭...⌛');
 
   chatModule.addMessage(chat.id, {
     role: ChatCompletionRequestMessageRoleEnum.User,
@@ -52,7 +52,7 @@ async function handleCompletionStream(
   prompt: string
 ): Promise<void> {
   const { chat } = msg;
-  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛...💭');
+  const { message_id: messageId } = await bot.sendMessage(chat.id, '💭...⌛');
   const { data, errorMsg }: { data: Iterable<any>; errorMsg: string } =
     await fetchCompletionStream({ prompt });
   if (errorMsg) {
@@ -111,7 +111,7 @@ async function handleImageGeneration(
   prompt: string
 ): Promise<void> {
   const { from, chat } = msg;
-  const { message_id: messageId } = await bot.sendMessage(chat.id, '⌛...💭');
+  const { message_id: messageId } = await bot.sendMessage(chat.id, '💭...⌛');
   let originalMessageDeleted = false;
   const { data: response, errorMsg } = await fetchImageGeneration({ prompt });
   if (errorMsg) {
