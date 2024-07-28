@@ -26,7 +26,7 @@ async function handleChatCompletion(
   chatModule.addMessage(chat.id, {
     role: ChatCompletionRequestMessageRoleEnum.User,
     content: prompt,
-    name: handleChineseCharacters(from.first_name),
+    name: handleChineseCharacters(from.username),
   });
   const { data, errorMsg } = await fetchChatCompletion({ chatId: chat.id });
   if (errorMsg) {
